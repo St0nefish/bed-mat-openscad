@@ -11,8 +11,8 @@ part_type = "straight"; // [post:Post/Pillar, straight:Straight Wall, corner:Cor
 
 /* [Dimensions] */
 
-// Height above TMat surface (mm)
-height = 40; // [10:5:200]
+// Height above TMat surface (mm) — OEM pieces are 63.5mm (2.5")
+height = 64; // [10:5:200]
 
 // Wall width (0 = auto, match interface profile)
 wall_width = 0; // [0:1:60]
