@@ -116,20 +116,24 @@ Ribs must be at least one nozzle width in diameter to print reliably:
 
 ## Fit Tuning
 
-The interface geometry is derived from caliper measurements of
-first-party attachments and the mat recesses. At `fit_clearance=0` the
-profile matches the first-party male dimensions exactly.
+The default `fit_clearance=0` is tuned for an ideal friction fit based
+on test prints across PLA, PETG, and ASA. A built-in base offset
+accounts for the difference between first-party male piece dimensions
+and the slightly larger female recesses. Shrinkage compensation is
+applied automatically based on the selected material.
+
+Lock bumps are enabled by default and engage the drainage cutouts in
+each recess for positive retention under vibration.
 
 To dial in the fit for your specific mat and printer:
 
-1. Print a **post** at `height=20` with `add_ribs=false` and
-   `fit_clearance=0` as a baseline
-2. Adjust `fit_clearance` in -0.05mm increments until snug
-3. Optionally enable ribs (`add_ribs=true`) and tune `rib_radius`
-4. Optionally enable `lock_bumps` for positive retention
+1. Print a **post** at `height=20` with default settings
+2. Adjust `fit_clearance` in 0.05mm increments (negative = tighter,
+   positive = looser)
+3. Optionally enable ribs (`add_ribs=true`) for additional friction
+4. Tune `lock_bump_protrusion` if lock engagement is too strong or weak
 
-Fit will vary by material (ASA shrinks more than PETG), printer
-calibration, and individual mat tolerances.
+Fit will vary by printer calibration and individual mat tolerances.
 
 ## Interface Dimensions
 
