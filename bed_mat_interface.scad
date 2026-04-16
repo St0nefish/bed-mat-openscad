@@ -69,20 +69,38 @@ plug_notch_depth = 1.5; // [0.5:0.25:3]
 
 /* [Fit Adjustment] */
 
-// Profile clearance (negative = tighter fit, mm per side)
+// Material (sets default shrinkage compensation)
+material = "ASA"; // [PLA:PLA (0.25%), PETG:PETG (0.4%), ASA:ASA (0.55%), ABS:ABS (0.55%), Custom:Custom]
+
+// Shrinkage override — set to -1 to use material default, or enter a custom %
+shrinkage_override = -1; // [-1:0.05:1.5]
+
+// Resolved shrinkage
+shrinkage_pct = (shrinkage_override >= 0) ? shrinkage_override :
+                (material == "PLA") ? 0.25 :
+                (material == "PETG") ? 0.4 :
+                (material == "ASA") ? 0.55 :
+                (material == "ABS") ? 0.55 : 0;
+
+// Profile clearance (mm per side, 0 = tested ideal fit)
+// Negative = tighter, positive = looser. Applied on top of shrinkage compensation.
 fit_clearance = 0; // [-1:0.05:1]
 
 // Add vertical ribs for friction fit
-add_ribs = true;
+add_ribs = false;
 
 // Rib radius (mm)
 rib_radius = 0.3; // [0.1:0.05:2]
 
 // Add locking bumps at arm tips (engages drainage cutouts in recess)
-lock_bumps = false;
+lock_bumps = true;
 
 // Lock bump sphere radius (mm)
-lock_bump_radius = 1.5; // [0.5:0.25:3]
+lock_bump_radius = 2.0; // [0.5:0.25:3]
+
+// Lock bump protrusion (mm) — how far the bump sticks out from the arm tip
+// Full hemisphere = lock_bump_radius. Smaller = gentler, easier to remove.
+lock_bump_protrusion = 0.4; // [0.1:0.1:3]
 
 // Lock bump depth from surface (mm) — drainage cutout top is ~13mm deep
 lock_bump_depth = 13.1; // [10:0.1:16]
@@ -126,7 +144,12 @@ center_radius = center_gap / 2; // mm - center fill radius
 // bbox_half = bar_hl * cos(45) + arm_radius
 bar_hl = (37.69 / 2 - arm_radius) / cos(45);
 
-c = fit_clearance;
+// Total offset: base fit + shrinkage compensation + user clearance
+// Base offset: -0.25mm baked in from test fitting (caliper measurements
+// match first-party male pieces, but female recesses are slightly larger)
+base_offset = -0.25;
+shrinkage_offset = (37.69 / 2) * (shrinkage_pct / 100);
+c = fit_clearance + base_offset - shrinkage_offset;  // negative c = larger part
 
 // Single capsule/stadium shape: rectangle with semicircle ends
 module capsule(hl, r) {
@@ -202,11 +225,13 @@ arm_tip_dist = bar_hl + arm_radius - c;
 
 module lock_bump_set() {
     if (lock_bumps) {
+        // Sink sphere inward so only lock_bump_protrusion sticks out
+        inset = lock_bump_radius - lock_bump_protrusion;
+        bump_dist = arm_tip_dist - inset;
         for (angle = [45, 135, 225, 315]) {
-            // Sphere center at the tip surface, bump_depth from top of interface
             translate([
-                arm_tip_dist * cos(angle),
-                arm_tip_dist * sin(angle),
+                bump_dist * cos(angle),
+                bump_dist * sin(angle),
                 lock_bump_depth
             ])
                 sphere(r = lock_bump_radius, $fn = 32);

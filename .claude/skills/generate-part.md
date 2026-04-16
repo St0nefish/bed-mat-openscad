@@ -11,89 +11,73 @@ plug, divider, pillar).
 
 ## Instructions
 
-Use the OpenSCAD CLI to render `bed_mat_interface.scad` with the requested
-parameters. The OpenSCAD binary location may vary by system — check for
-`openscad` in PATH first, then common locations like `/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD`.
+Use `generate.sh` in the project root. It wraps the OpenSCAD CLI with typed
+flags and auto-generates descriptive filenames.
 
-### Parameter Reference
+Run `./generate.sh --help` for full flag reference.
 
-**Part type** (`part_type`): `"post"`, `"straight"`, `"corner"`, `"tee"`, `"plug"`
-
-**Shared parameters:**
-
-- `height` — height above mat surface in mm (default: 40)
-- `wall_width` — body width in mm, 0 = auto match profile (default: 0)
-- `fit_clearance` — mm per side, negative = tighter (default: 0)
-- `add_ribs` — boolean, vertical friction ribs (default: true)
-- `rib_radius` — mm, semicircle rib radius (default: 0.3)
-- `lock_bumps` — boolean, locking hemispheres at arm tips (default: false)
-- `lock_bump_radius` — mm (default: 1.5)
-- `lock_bump_depth` — mm from surface (default: 13.1)
-- `interface_spacing` — `"diagonal"` (OEM, every other) or `"dense"` (every recess)
-
-**Straight wall:**
-
-- `straight_half_units` — length in half-units, min 2 (default: 2 = 1U)
-- `straight_wall_offset` — mm offset from center (default: 0)
-
-**Corner/L-shape:**
-
-- `corner_half_units_x` / `corner_half_units_y` — leg lengths in half-units (default: 1)
-- `corner_interface_at_joint` — boolean (default: false)
-- `corner_wall_position` — `"none"`, `"inside"`, `"outside"` (default: "none")
-
-**T-shape:**
-
-- `tee_half_units_x` / `tee_half_units_y` — crossbar per-side / stem in half-units (default: 1)
-- `tee_interface_at_joint` — boolean (default: false)
-- `tee_stem_position` — `"none"`, `"left"`, `"right"` (default: "none")
-
-**Plug:**
-
-- `plug_cap_thickness` — mm (default: 3)
-- `plug_finger_notch` — boolean (default: true)
-- `plug_notch_radius` — mm (default: 5)
-- `plug_notch_depth` — mm (default: 1.5)
-
-### Rendering
-
-Build the `-D` flags from the user's request and run:
+### Quick Reference
 
 ```bash
-openscad -D 'param1=value1; param2=value2' bed_mat_interface.scad -o output.stl
+# Basic examples
+./generate.sh -t post -H 20
+./generate.sh -t straight -u 4 -H 50
+./generate.sh -t corner -x 2 -y 2 -m PETG -c -0.2
+./generate.sh -t tee -x 1 -y 1 --joint
+./generate.sh -t plug --cap-thickness 4
+
+# Output to specific directory
+./generate.sh -t post -H 20 -o /path/to/output
+
+# Lock bumps
+./generate.sh -t post --lock --lock-radius 2.0 --lock-protrusion 0.4
+
+# Pass raw OpenSCAD variables not covered by flags
+./generate.sh -t post -D 'wall_thickness=4'
 ```
 
-String parameters need inner quotes: `-D 'part_type="corner"'`
+### Key Flags
 
-Multiple `-D` flags or semicolon-separated in one flag both work.
+| Flag | OpenSCAD Variable | Description |
+|------|-------------------|-------------|
+| `-t, --type` | `part_type` | post, straight, corner, tee, plug (required) |
+| `-H, --height` | `height` | Height above mat surface in mm |
+| `-m, --material` | `material` | PLA, PETG, ASA, ABS, Custom |
+| `-c, --clearance` | `fit_clearance` | mm per side, negative = tighter |
+| `-u, --units` | `straight_half_units` | Straight length in half-units |
+| `-x, --units-x` | `corner/tee_half_units_x` | X leg half-units |
+| `-y, --units-y` | `corner/tee_half_units_y` | Y leg half-units |
+| `--joint` | `*_interface_at_joint` | Add interface at corner/tee joint |
+| `--lock` | `lock_bumps` | Enable lock bumps |
+| `--lock-radius` | `lock_bump_radius` | Lock sphere radius (mm) |
+| `--lock-protrusion` | `lock_bump_protrusion` | How far bump sticks out (mm) |
+| `--no-ribs` | `add_ribs=false` | Disable friction ribs |
+| `--spacing` | `interface_spacing` | diagonal or dense |
+| `-o, --output` | — | Output directory |
+| `-n, --name` | — | Override auto filename |
+| `-D` | — | Raw OpenSCAD -D flag (repeatable) |
+| `--dry-run` | — | Print command without running |
 
-After rendering, report:
+### Auto Filename Format
+
+`{type}[_material][_{size}]_h{height}[_c{clearance}][_ribs-{radius}][_lock[-{radius}][-{protrusion}]].stl`
+
+### After Rendering
+
+Report:
 
 - Output file path
 - Key parameters used
-- Genus (from OpenSCAD output) — 0 is clean, nonzero may have cosmetic
-  artifacts but typically slices fine
-
-### Naming Convention
-
-Name output files descriptively with key parameters:
-`bed_mat_{type}_{units}u_h{height}[_c{clearance}][_r{rib_radius}].stl`
-
-Examples:
-
-- `bed_mat_straight_2u_h40.stl`
-- `bed_mat_corner_1x1_h30_c-0.1.stl`
-- `bed_mat_post_h20_ribs.stl`
+- Genus if shown (0 = clean manifold, nonzero = cosmetic artifacts)
 
 ### Sizing Notes
 
 - Grid pitch = 50.8mm (2 inches) between adjacent recesses
-- `interface_spacing="diagonal"` (default): 1 unit = 101.6mm (skips one recess)
-- `interface_spacing="dense"`: 1 unit = 50.8mm (every recess)
+- `--spacing diagonal` (default): 1 unit = 101.6mm (skips one recess)
+- `--spacing dense`: 1 unit = 50.8mm (every recess)
 - Half-units allow 0.5U increments for overhang beyond last interface
 - Interfaces only placed at whole-unit positions
 - Stock corner/T pieces use 1 half-unit per leg (no interface at joint)
-- Larger pieces can enable `*_interface_at_joint` for extra support
 
 ### Print Recommendations
 

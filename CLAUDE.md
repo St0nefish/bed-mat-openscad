@@ -55,19 +55,20 @@ bodies intersect the X profile).
 
 ## Fit Tuning
 
-`fit_clearance=0` matches first-party male piece dimensions exactly.
-The female recesses are slightly larger, so users will typically need
-small negative values (e.g., -0.05 to -0.1) for a snug fit. This varies
-by printer calibration and material shrinkage.
+`fit_clearance=0` is the tested ideal fit. A built-in base offset
+(-0.25mm) accounts for the difference between caliper measurements of
+first-party male pieces and the slightly larger female recesses.
+Shrinkage compensation is applied automatically per material.
 
-Additional fit features:
+Default fit features:
 
-- `add_ribs` / `rib_radius` — vertical friction bumps on arm sides
-- `lock_bumps` — hemispheres at arm tips engaging drainage cutouts
+- `lock_bumps=true` — r=2.0mm spheres, 0.4mm protrusion, engaging drainage cutouts
+- `add_ribs=false` — optional vertical friction bumps on arm sides
 
 ## Files
 
 - `bed_mat_interface.scad` — the generator (all parameters at top)
+- `generate.sh` — CLI wrapper for rendering STLs
 - `README.md` — user documentation, measurements, print settings
 - `LICENSE` — MIT
 - `.claude/skills/generate-part.md` — Claude Code skill for CLI generation
