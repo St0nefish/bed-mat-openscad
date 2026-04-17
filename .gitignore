@@ -1,0 +1,2 @@
+# Local overrides (user-specific output dir, default material, etc.)
+.env

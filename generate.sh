@@ -48,6 +48,7 @@
 #   -x, --units-x N        X leg half-units (default: 1)
 #   -y, --units-y N        Y leg half-units (default: 1)
 #   --joint                Add interface at corner/tee joint
+#   --no-joint             Force joint interface off (override .env)
 #   --wall-position POS    Corner: none, inside, outside (default: none)
 #   --stem-position POS    Tee: none, left, right (default: none)
 #
@@ -59,6 +60,7 @@
 #   --no-ribs              Disable friction ribs
 #   --rib-radius MM        Rib radius (default: 0.3)
 #   --lock                 Enable lock bumps
+#   --no-lock              Disable lock bumps (override .env/default)
 #   --lock-radius MM       Lock bump sphere radius (default: 1.5)
 #   --lock-protrusion MM   Lock bump protrusion (default: 0.5)
 #   --lock-depth MM        Lock bump depth from surface (default: 13.1)
@@ -70,6 +72,11 @@
 #   -D 'key=value'         Pass raw OpenSCAD -D flag (repeatable)
 #   --dry-run              Print the OpenSCAD command without running it
 #   -h, --help             Show this help message
+#
+# Configuration:
+#   A .env file next to this script is sourced before arg parsing. Any variable
+#   used below (OUTPUT_DIR, MATERIAL, HEIGHT, LOCK_BUMPS, etc.) can be set
+#   there. CLI flags always override .env. See .env.example for the full list.
 
 set -euo pipefail
 
@@ -101,8 +108,31 @@ SPACING=""
 EXTRA_D=()
 DRY_RUN=false
 
-# --- Find OpenSCAD ---
+# --- Find .scad source ---
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCAD_FILE="$SCRIPT_DIR/bed_mat_interface.scad"
+
+if [[ ! -f "$SCAD_FILE" ]]; then
+  echo "Error: $SCAD_FILE not found" >&2
+  exit 1
+fi
+
+# --- Load .env (non-tracked, project-local defaults; CLI flags override) ---
+if [[ -f "$SCRIPT_DIR/.env" ]]; then
+  # shellcheck disable=SC1091
+  source "$SCRIPT_DIR/.env"
+fi
+
+# --- Find OpenSCAD (honors $OPENSCAD from .env/env if set) ---
 find_openscad() {
+  if [[ -n "${OPENSCAD:-}" ]]; then
+    if [[ -x "$OPENSCAD" ]] || command -v "$OPENSCAD" &>/dev/null; then
+      echo "$OPENSCAD"
+      return
+    fi
+    echo "Error: OPENSCAD is set to '$OPENSCAD' but is not executable." >&2
+    exit 1
+  fi
   if command -v openscad &>/dev/null; then
     echo "openscad"
   elif [[ -x "/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD" ]]; then
@@ -112,15 +142,6 @@ find_openscad() {
     exit 1
   fi
 }
-
-# --- Find .scad source ---
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCAD_FILE="$SCRIPT_DIR/bed_mat_interface.scad"
-
-if [[ ! -f "$SCAD_FILE" ]]; then
-  echo "Error: $SCAD_FILE not found" >&2
-  exit 1
-fi
 
 # --- Usage ---
 usage() {
@@ -183,6 +204,10 @@ while [[ $# -gt 0 ]]; do
       JOINT=true
       shift
       ;;
+    --no-joint)
+      JOINT=false
+      shift
+      ;;
     --wall-position)
       WALL_POSITION="$2"
       shift 2
@@ -209,6 +234,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --lock)
       LOCK_BUMPS=true
+      shift
+      ;;
+    --no-lock)
+      LOCK_BUMPS=false
       shift
       ;;
     --lock-radius)
@@ -287,13 +316,13 @@ add_d_str "part_type" "$PART_TYPE"
 # Corner
 [[ -n "$UNITS_X" ]] && add_d "corner_half_units_x" "$UNITS_X"
 [[ -n "$UNITS_Y" ]] && add_d "corner_half_units_y" "$UNITS_Y"
-[[ "$JOINT" == true ]] && add_d "corner_interface_at_joint" "true"
+[[ -n "$JOINT" ]] && add_d "corner_interface_at_joint" "$JOINT"
 [[ -n "$WALL_POSITION" ]] && add_d_str "corner_wall_position" "$WALL_POSITION"
 
 # Tee (reuse -x/-y and --joint)
 [[ -n "$UNITS_X" ]] && add_d "tee_half_units_x" "$UNITS_X"
 [[ -n "$UNITS_Y" ]] && add_d "tee_half_units_y" "$UNITS_Y"
-[[ "$JOINT" == true ]] && add_d "tee_interface_at_joint" "true"
+[[ -n "$JOINT" ]] && add_d "tee_interface_at_joint" "$JOINT"
 [[ -n "$STEM_POSITION" ]] && add_d_str "tee_stem_position" "$STEM_POSITION"
 
 # Plug
@@ -303,7 +332,7 @@ add_d_str "part_type" "$PART_TYPE"
 # Fit features
 [[ "$ADD_RIBS" == false ]] && add_d "add_ribs" "false"
 [[ -n "$RIB_RADIUS" ]] && add_d "rib_radius" "$RIB_RADIUS"
-[[ "$LOCK_BUMPS" == true ]] && add_d "lock_bumps" "true"
+[[ -n "$LOCK_BUMPS" ]] && add_d "lock_bumps" "$LOCK_BUMPS"
 [[ -n "$LOCK_RADIUS" ]] && add_d "lock_bump_radius" "$LOCK_RADIUS"
 [[ -n "$LOCK_PROTRUSION" ]] && add_d "lock_bump_protrusion" "$LOCK_PROTRUSION"
 [[ -n "$LOCK_DEPTH" ]] && add_d "lock_bump_depth" "$LOCK_DEPTH"
@@ -340,7 +369,9 @@ if [[ -z "$OUTPUT_NAME" ]]; then
   if [[ "$ADD_RIBS" != false && -n "$RIB_RADIUS" ]]; then
     NAME+="_ribs-${RIB_RADIUS}"
   fi
-  if [[ "$LOCK_BUMPS" == true ]]; then
+  if [[ "$LOCK_BUMPS" == false ]]; then
+    NAME+="_nolock"
+  elif [[ "$LOCK_BUMPS" == true ]]; then
     LOCK_TAG="_lock"
     [[ -n "$LOCK_RADIUS" ]] && LOCK_TAG+="-${LOCK_RADIUS}"
     [[ -n "$LOCK_PROTRUSION" ]] && LOCK_TAG+="-${LOCK_PROTRUSION}"
