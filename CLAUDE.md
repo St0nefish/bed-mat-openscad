@@ -75,5 +75,12 @@ Default fit features:
 
 ## Workflow
 
+This repo uses **Pattern B (direct)**: `master` is unprotected — no PR flow, no
+CI gate. Commit and push straight to `master`. Do not create feature branches or
+open PRs for ordinary changes. A bad commit is fixed by another commit or a
+revert; nothing downstream consumes this repo. This is decided policy, not
+inferred from the repo's short history — see the knowledge base standard at
+`dev/tools/repo-workflow-patterns.md`.
+
 This is a **GitHub** repository — use the `gh` CLI for remote operations
 (issues, PRs, CI).
