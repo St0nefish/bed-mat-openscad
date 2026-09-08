@@ -72,3 +72,8 @@ Default fit features:
 - `README.md` — user documentation, measurements, print settings
 - `LICENSE` — MIT
 - `.claude/skills/generate-part.md` — Claude Code skill for CLI generation
+
+## Workflow
+
+This is a **GitHub** repository — use the `gh` CLI for remote operations
+(issues, PRs, CI).
