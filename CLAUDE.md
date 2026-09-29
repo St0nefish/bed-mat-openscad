@@ -40,7 +40,7 @@ allows 0.5U body extensions beyond the last interface.
 - `interface_3d_with_ribs()` / `interface_3d_no_ribs()` — 3D interface with optional lock bumps
 - `capped_interface(cap)` — interface + optional solid cap when wall < profile width
 - `interface_column(height, filled)` — full column: cap + body + interface (used by post)
-- `leg_interfaces(n, h, cap)` — place interfaces along a leg at half-unit intervals
+- `leg_interfaces(n, h, cap)` — place interfaces along a leg at every recess (half-unit steps that land on the grid)
 
 ## Rendering
 
@@ -71,7 +71,8 @@ Default fit features:
 - `generate.sh` — CLI wrapper for rendering STLs
 - `README.md` — user documentation, measurements, print settings
 - `LICENSE` — MIT
-- `.claude/skills/generate-part.md` — Claude Code skill for CLI generation
+- `.env.example` — template for local `generate.sh` defaults (copy to `.env`, untracked)
+- `.claude/skills/generate-part/SKILL.md` — Claude Code skill for CLI generation
 
 ## Workflow
 

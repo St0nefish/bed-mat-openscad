@@ -25,8 +25,36 @@ over size, fit, and configuration.
 
 ## Usage
 
-Open `bed_mat_interface.scad` in OpenSCAD. All parameters are in the
-Customizer panel (Window > Customizer) or can be set on the command line:
+Requires [OpenSCAD](https://openscad.org/).
+
+### OpenSCAD GUI
+
+Open `bed_mat_interface.scad` in OpenSCAD and set parameters in the
+Customizer panel (Window > Customizer). Render (F6) and export STL.
+
+### Command line (`generate.sh`)
+
+`generate.sh` wraps the OpenSCAD CLI with named flags and writes a
+descriptively named STL:
+
+```bash
+./generate.sh -t straight -u 4            # 2U straight wall
+./generate.sh -t corner -x 2 -y 2         # corner, 1U legs
+./generate.sh -t tee --joint              # T with interface at the joint
+./generate.sh -t post -H 20 -c -0.1       # short test post, slightly tighter
+./generate.sh -t plug -m PETG -o ~/stls   # hole plug in PETG
+./generate.sh --help                      # full flag reference
+```
+
+Anything without a dedicated flag can be passed straight through with
+`-D 'name=value'`, and `--dry-run` prints the OpenSCAD command instead
+of running it.
+
+For persistent local defaults (output directory, material, OpenSCAD
+path, etc.), copy `.env.example` to `.env` and edit. CLI flags always
+override `.env`.
+
+Plain OpenSCAD works too:
 
 ```bash
 openscad -D 'part_type="straight"; height=50; straight_half_units=3' \
@@ -35,14 +63,17 @@ openscad -D 'part_type="straight"; height=50; straight_half_units=3' \
 
 ### Key Parameters
 
-- **Part Type**: post, straight, corner, tee, plug
-- **Height**: wall height above the mat surface (mm)
-- **Wall Width**: body width (0 = auto-match interface profile)
-- **Half-Units**: sizing in 0.5x pitch increments (1 = 0.5U, 2 = 1U, etc.)
-- **Interface Spacing**: diagonal (OEM default) or dense (every recess)
-- **Fit Clearance**: tune snugness (negative = tighter, positive = looser)
-- **Ribs**: optional vertical friction ribs on the interface
-- **Lock Bumps**: hemispheres at arm tips that engage drainage cutouts
+| Parameter | Default | Notes |
+|-----------|---------|-------|
+| Part type | `straight` | post, straight, corner, tee, plug |
+| Height | 64mm | Above the mat surface; OEM pieces are 63.5mm (2.5") |
+| Wall width | 0 (auto) | 0 matches the interface profile width |
+| Half-units | varies | Length in 0.5U steps (1 = 0.5U, 2 = 1U, ...) |
+| Interface spacing | diagonal | `diagonal` (OEM) or `dense` (every recess) |
+| Material | ASA | PLA, PETG, ASA, ABS, Custom — sets shrinkage compensation |
+| Fit clearance | 0 | mm per side; negative = tighter, positive = looser |
+| Lock bumps | on | Partial spheres at the arm tips that engage the drainage cutouts |
+| Ribs | off | Optional vertical friction ribs on the arm sides |
 
 ### Grid Layout
 
@@ -81,9 +112,18 @@ pitch (101.6mm in diagonal mode, 50.8mm in dense mode). This allows
 0.5U increments for bodies that extend beyond the last interface to
 catch larger items.
 
-Interfaces are placed at every whole-unit position. For example, a
-straight with `straight_half_units=3` (1.5U) has interfaces at 0 and
-1U, with the body extending an extra 0.5U past the second interface.
+**Straight walls** place interfaces at whole-unit positions only, with
+the body centered over them. For example, `straight_half_units=3`
+(1.5U) has two interfaces 1U apart, and the extra 0.5U of body is split
+evenly, extending 0.25U past each end interface.
+
+**Corner and T legs** place an interface at every recess along each
+leg, measured from the joint: every half-unit in diagonal mode, every
+whole unit in dense mode (dense half-units fall between recesses). The
+joint interface is off by default. A part with no interfaces at all
+(e.g. a dense 1x1 corner with no joint) renders with a warning.
+Stock OEM corner and T pieces are 1 half-unit per leg with no joint
+interface.
 
 ## Printing
 
