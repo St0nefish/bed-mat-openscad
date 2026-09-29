@@ -49,7 +49,7 @@ or `-m ASA` unless the user wants non-default values for these.
 ./generate.sh -t post -o /path/to/output
 
 # Disable locks for a specific part
-./generate.sh -t straight -u 4 -D 'lock_bumps=false'
+./generate.sh -t straight -u 4 --no-lock
 ```
 
 Run `./generate.sh --help` for full flag reference.
@@ -69,7 +69,7 @@ Run `./generate.sh --help` for full flag reference.
 | `--lock` | Enable lock bumps | on |
 | `--lock-radius` | Lock sphere radius (mm) | 2.0 |
 | `--lock-protrusion` | Bump protrusion (mm) | 0.4 |
-| `--no-ribs` | Disable friction ribs | already off |
+| `--ribs` / `--no-ribs` | Enable / disable friction ribs | off |
 | `--rib-radius` | Rib radius if ribs enabled (mm) | 0.3 |
 | `--spacing` | diagonal or dense | diagonal |
 | `-o, --output` | Output directory | cwd |
@@ -93,7 +93,8 @@ Report the output file path and key non-default parameters used.
 - `--spacing diagonal` (default): 1 unit = 101.6mm (skips one recess)
 - `--spacing dense`: 1 unit = 50.8mm (every recess)
 - Half-units allow 0.5U increments for overhang beyond last interface
-- Interfaces only placed at whole-unit positions
+- Straight: interfaces only at whole-unit positions, body centered over them
+- Corner/tee: an interface at every recess along each leg (every half-unit in diagonal, every whole unit in dense)
 - Stock corner/T pieces use 1 half-unit per leg (no interface at joint)
 
 ### Print Recommendations

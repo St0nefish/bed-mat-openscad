@@ -353,15 +353,32 @@ module capped_interface(cap) {
                 outer_profile();
 }
 
-// Place interfaces along a leg at every 0.5U starting from 0.5U
+// Half-units per grid recess: 1 in diagonal mode (0.5U = 50.8mm),
+// 2 in dense mode (0.5U = 25.4mm, which falls between recesses)
+hu_per_recess = round(grid_pitch / (hole_pitch / 2));
+
+function leg_interface_count(n) = floor(n / hu_per_recess);
+
+module warn_if_no_interfaces(total) {
+    if (total == 0)
+        echo("WARNING: part has no interfaces - lengthen the legs or enable the joint interface");
+}
+
+// Place interfaces along a leg at every recess, starting from the joint
 // n = number of half-units, origin = leg start
 module leg_interfaces(n, h, cap) {
     for (i = [1 : n])
-        translate([hu(i), 0, h])
-            capped_interface(cap);
+        if (i % hu_per_recess == 0)
+            translate([hu(i), 0, h])
+                capped_interface(cap);
 }
 
 module tmat_corner() {
+    warn_if_no_interfaces(
+        leg_interface_count(corner_half_units_x) +
+        leg_interface_count(corner_half_units_y) +
+        (corner_interface_at_joint ? 1 : 0));
+
     h = height;
     cw = wall_w;
     x_end = hu(corner_half_units_x) + profile_w/2;
@@ -393,6 +410,11 @@ module tmat_corner() {
 }
 
 module tmat_tee() {
+    warn_if_no_interfaces(
+        leg_interface_count(tee_half_units_x) * 2 +
+        leg_interface_count(tee_half_units_y) +
+        (tee_interface_at_joint ? 1 : 0));
+
     h = height;
     tw = wall_w;
     x_end = hu(tee_half_units_x) + profile_w/2;
@@ -431,7 +453,7 @@ module tmat_tee() {
     }
 }
 
-/* === PART SELECTION === */
+/* === HOLE PLUG === */
 
 module tmat_plug() {
     // Print upside down: cap on build plate, interface on top
@@ -446,10 +468,12 @@ module tmat_plug() {
 
         // Finger notch: cylindrical groove near the edge of the cap
         if (plug_finger_notch) {
-            // Position the groove cylinder so it cuts into the top
-            // surface near one edge, creating a scoop for a fingernail
+            // Groove in the visible top face (Z=0, on the build plate),
+            // cut plug_notch_depth deep so it never breaks through into
+            // the hollow interface. Scoop reaches the edge for a fingernail.
+            notch_d = min(plug_notch_depth, plug_cap_thickness - 1);
             notch_y = profile_w / 2 - plug_notch_radius + plug_notch_depth;
-            translate([0, notch_y, plug_cap_thickness])
+            translate([0, notch_y, notch_d - plug_notch_radius])
                 rotate([0, 90, 0])
                     cylinder(r = plug_notch_radius,
                              h = profile_w + 2,
