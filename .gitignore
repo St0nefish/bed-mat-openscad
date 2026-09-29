@@ -1,2 +1,5 @@
 # Local overrides (user-specific output dir, default material, etc.)
 .env
+
+# Serena MCP project state
+.serena/
