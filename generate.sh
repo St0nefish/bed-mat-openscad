@@ -9,17 +9,17 @@
 #   ./generate.sh [options]
 #
 # Examples:
-#   # Basic straight wall, 2U long, 40mm tall
+#   # Straight wall, 2U long, 50mm tall
 #   ./generate.sh -t straight -u 4 -H 50
 #
 #   # Corner piece for PETG with tighter fit
 #   ./generate.sh -t corner -m PETG -c -0.2
 #
-#   # Post with lock bumps, custom protrusion
-#   ./generate.sh -t post -H 20 --lock --lock-protrusion 0.4
+#   # Post with gentler lock bumps
+#   ./generate.sh -t post -H 20 --lock-protrusion 0.3
 #
-#   # Test fit post: short, no ribs, specific clearance
-#   ./generate.sh -t post -H 20 --no-ribs -c -0.25
+#   # Test fit post: short, no lock bumps, tighter clearance
+#   ./generate.sh -t post -H 20 --no-lock -c -0.1
 #
 #   # Dense spacing corner with joint interface
 #   ./generate.sh -t corner --spacing dense --joint -x 2 -y 2
@@ -34,9 +34,9 @@
 #   -t, --type TYPE        Part type: post, straight, corner, tee, plug (required)
 #   -o, --output DIR       Output directory (default: current directory)
 #   -n, --name NAME        Output filename (default: auto-generated)
-#   -H, --height MM        Height above mat surface (default: 40)
+#   -H, --height MM        Height above mat surface (default: 64)
 #   -w, --wall-width MM    Body wall width, 0 = auto (default: 0)
-#   -m, --material MAT     Material: PLA, PETG, ASA, ABS, Custom (default: PLA)
+#   -m, --material MAT     Material: PLA, PETG, ASA, ABS, Custom (default: ASA)
 #   -c, --clearance MM     Fit clearance per side, negative = tighter (default: 0)
 #   -s, --shrinkage PCT    Override shrinkage % (-1 = use material default)
 #
@@ -57,12 +57,13 @@
 #   --no-notch             Disable finger notch
 #
 #   Fit features:
-#   --no-ribs              Disable friction ribs
+#   --ribs                 Enable friction ribs (default: off)
+#   --no-ribs              Disable friction ribs (override .env)
 #   --rib-radius MM        Rib radius (default: 0.3)
-#   --lock                 Enable lock bumps
+#   --lock                 Enable lock bumps (default: on)
 #   --no-lock              Disable lock bumps (override .env/default)
-#   --lock-radius MM       Lock bump sphere radius (default: 1.5)
-#   --lock-protrusion MM   Lock bump protrusion (default: 0.5)
+#   --lock-radius MM       Lock bump sphere radius (default: 2.0)
+#   --lock-protrusion MM   Lock bump protrusion (default: 0.4)
 #   --lock-depth MM        Lock bump depth from surface (default: 13.1)
 #
 #   Grid:
@@ -224,6 +225,10 @@ while [[ $# -gt 0 ]]; do
       FINGER_NOTCH=false
       shift
       ;;
+    --ribs)
+      ADD_RIBS=true
+      shift
+      ;;
     --no-ribs)
       ADD_RIBS=false
       shift
@@ -330,7 +335,7 @@ add_d_str "part_type" "$PART_TYPE"
 [[ "$FINGER_NOTCH" == false ]] && add_d "plug_finger_notch" "false"
 
 # Fit features
-[[ "$ADD_RIBS" == false ]] && add_d "add_ribs" "false"
+[[ -n "$ADD_RIBS" ]] && add_d "add_ribs" "$ADD_RIBS"
 [[ -n "$RIB_RADIUS" ]] && add_d "rib_radius" "$RIB_RADIUS"
 [[ -n "$LOCK_BUMPS" ]] && add_d "lock_bumps" "$LOCK_BUMPS"
 [[ -n "$LOCK_RADIUS" ]] && add_d "lock_bump_radius" "$LOCK_RADIUS"
@@ -363,11 +368,14 @@ if [[ -z "$OUTPUT_NAME" ]]; then
       ;;
   esac
 
-  h="${HEIGHT:-40}"
-  NAME+="_h${h}"
+  # Plug has no body, so height doesn't apply
+  if [[ "$PART_TYPE" != plug ]]; then
+    h="${HEIGHT:-64}"
+    NAME+="_h${h}"
+  fi
   [[ -n "$CLEARANCE" ]] && NAME+="_c${CLEARANCE}"
-  if [[ "$ADD_RIBS" != false && -n "$RIB_RADIUS" ]]; then
-    NAME+="_ribs-${RIB_RADIUS}"
+  if [[ "$ADD_RIBS" == true ]]; then
+    NAME+="_ribs${RIB_RADIUS:+-$RIB_RADIUS}"
   fi
   if [[ "$LOCK_BUMPS" == false ]]; then
     NAME+="_nolock"
@@ -405,10 +413,12 @@ mkdir -p "$OUTPUT_DIR"
 
 if OUTPUT=$("${CMD[@]}" 2>&1); then
   # Extract genus from OpenSCAD output
-  GENUS=$(echo "$OUTPUT" | sed -n 's/.*Genus: \([0-9]*\).*/\1/p' | tail -1)
+  GENUS=$(echo "$OUTPUT" | sed -n 's/.*Genus: *\([0-9][0-9]*\).*/\1/p' | tail -1)
   GENUS="${GENUS:-?}"
   echo "Done: $OUTPUT_PATH"
   echo "Genus: $GENUS"
+  # Surface OpenSCAD warnings (including echo()'d ones from the model)
+  echo "$OUTPUT" | grep -E 'WARNING' >&2 || true
 else
   echo "Error during rendering:" >&2
   echo "$OUTPUT" >&2
