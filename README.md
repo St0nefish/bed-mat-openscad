@@ -3,6 +3,9 @@
 Parametric OpenSCAD generator for custom truck bed mat organizer attachments.
 Compatible with TMat and similar X-pattern snap-in bed mat systems.
 
+*Not affiliated with or endorsed by TMat. TMat is a trademark of its
+respective owner.*
+
 ## What is this?
 
 Truck bed mats like TMat have a grid of X-shaped recesses that accept
